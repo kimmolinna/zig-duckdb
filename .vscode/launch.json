@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/zig-out/bin/${workspaceFolderBasename}",
+            "program": "${workspaceFolder}/zig-out/bin/zig-duck",
             "args": ["src/main.zig"],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "build"
-        }
+    }
     ]
 }

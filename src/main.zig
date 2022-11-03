@@ -1,6 +1,5 @@
-const dd = @cImport(@cInclude("duckdb.h"));
 const std = @import("std");
-
+const dd = @cImport(@cInclude("duckdb.h"));
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -15,9 +14,9 @@ pub fn main() anyerror!void {
         .internal_data = null
     };
 
-    //const path: [:0]const u8 = ":memory:";
+    const path: [*]const u8 = ":memory:";
 
-    if (dd.duckdb_open(null,&db) == dd.DuckDBError){
+    if (dd.duckdb_open(path,&db) == dd.DuckDBError){
        try stdout.print("Failed to open database\n",.{});
        std.process.exit(1);
     }
@@ -40,9 +39,8 @@ pub fn main() anyerror!void {
 
     // print the names of the result
     var i: usize = 0;
-    while (i < result.column_count) {
-        try stdout.print("{s} ", .{result.columns[i].name});
-        i += 1;
+    while (i < dd.duckdb_column_count(&result)) : (i += 1) {
+        try stdout.print("{s} ", .{dd.duckdb_column_name(&result, i)});
     }
     try stdout.print("\n",.{});
 
@@ -51,9 +49,9 @@ pub fn main() anyerror!void {
     var col_idx: usize = 0;
     var val: [*c]u8 = null;
 
-    while (row_idx < result.row_count) {
+    while (row_idx < dd.duckdb_row_count(&result)) : (row_idx += 1) {
         col_idx = 0;
-        while (col_idx < result.column_count) {
+        while (col_idx < dd.duckdb_column_count(&result)) : (col_idx += 1) {
             val = dd.duckdb_value_varchar(&result, col_idx, row_idx);
             if (val==null){
                 try stdout.print("  ", .{});               
@@ -61,13 +59,12 @@ pub fn main() anyerror!void {
                 try stdout.print("{s} ", .{val});   
             }
             dd.duckdb_free(val);
-            col_idx += 1;
         }
-        row_idx += 1;
         try stdout.print("\n",.{});
     }
 
     defer {
+        dd.duckdb_destroy_result(&result);
         dd.duckdb_disconnect(&con);
         dd.duckdb_close(&db);
     }

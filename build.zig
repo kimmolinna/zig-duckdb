@@ -14,8 +14,9 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("zig-duck", "src/main.zig");
     exe.setBuildMode(mode);
     exe.setTarget(target);  
-    exe.addIncludeDir("src/../include");
-    exe.linkSystemLibrary("src/../lib/libduckdb.so");
+    exe.addIncludePath("duckdb");
+    exe.addLibraryPath("duckdb");
+    exe.linkSystemLibrary("duckdb");
     exe.linkLibC();
     exe.install();
 

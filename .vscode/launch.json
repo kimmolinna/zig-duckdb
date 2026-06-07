@@ -9,7 +9,6 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/zig-out/bin/zig-duck",
-            "args": ["src/main.zig"],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "build"
     }

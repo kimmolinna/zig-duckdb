@@ -1,38 +1,43 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    const translate_duckdb = b.addTranslateC(.{
+        .root_source_file = b.path("duckdb/duckdb.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    translate_duckdb.addIncludePath(b.path("duckdb"));
 
-    const exe = b.addExecutable("zig-duck", "src/main.zig");
-    exe.setBuildMode(mode);
-    exe.setTarget(target);  
-    exe.addIncludePath("duckdb");
-    exe.addLibraryPath("duckdb");
-    exe.linkSystemLibrary("duckdb");
-    exe.linkLibC();
-    exe.install();
+    const duckdb_mod = translate_duckdb.createModule();
+    duckdb_mod.addIncludePath(b.path("duckdb"));
+    duckdb_mod.addLibraryPath(b.path("duckdb"));
+    duckdb_mod.linkSystemLibrary("duckdb", .{});
+    duckdb_mod.addRPath(b.path("duckdb"));
 
-    const run_cmd = exe.run();
+    const exe = b.addExecutable(.{
+        .name = "zig-duck",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "duckdb", .module = duckdb_mod },
+            },
+        }),
+    });
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const exe_tests = b.addTest("src/main.zig");
-    exe_tests.setTarget(target);
-    exe_tests.setBuildMode(mode);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&exe_tests.step);
+    const update = b.addSystemCommand(&.{ "bash", "scripts/update-duckdb.sh" });
+    const update_step = b.step("update-duckdb", "Download latest DuckDB release artifacts");
+    update_step.dependOn(&update.step);
 }
